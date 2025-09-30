@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>방정식 그래프 생성기</title>
+    
+    <script src="https://unpkg.com/d3@7/dist/d3.min.js"></script>
+    <script src="https://unpkg.com/function-plot/dist/function-plot.js"></script>
+
+    <style>
+        /* --- 전체 페이지 스타일 --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+                Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        /* --- 메인 컨테이너 --- */
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            box-sizing: border-box;
+        }
+
+        /* --- 헤더 --- */
+        header h1 {
+            color: #1c1e21;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        header p {
+            color: #606770;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 25px;
+        }
+
+        /* --- 입력 섹션 --- */
+        .input-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #equationInput {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #dddfe2;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        #equationInput:focus {
+            outline: none;
+            border-color: #1877f2;
+            box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
+        }
+
+        #plotButton {
+            padding: 12px 20px;
+            border: none;
+            background-color: #1877f2;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #plotButton:hover {
+            background-color: #166fe5;
+        }
+        
+        /* --- 그래프가 그려질 영역 --- */
+        #graph {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #dddfe2;
+            border-radius: 6px;
+        }
+
+        /* --- 에러 메시지 --- */
+        #error-message {
+            color: #fa383e;
+            text-align: center;
+            margin-top: 15px;
+            display: none; /* 평소에는 숨김 */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>방정식 그래프 생성기</h1>
+            <p>y에 대한 함수를 입력하고 '그리기' 버튼을 누르세요. (예: x^2, sin(x), log(x))</p>
+        </header>
+
+        <div class="input-section">
+            <input type="text" id="equationInput" placeholder="예: x^3 - 6*x^2 + 4*x + 12">
+            <button id="plotButton">그리기</button>
+        </div>
+
+        <div id="graph"></div>
+        <p id="error-message"></p>
+    </div>
+
+    <script>
+        // DOM 요소 가져오기
+        const equationInput = document.getElementById('equationInput');
+        const plotButton = document.getElementById('plotButton');
+        const graphContainer = document.getElementById('graph');
+        const errorMessage = document.getElementById('error-message');
+
+        // 그래프를 그리는 함수
+        function drawGraph() {
+            // 이전 에러 메시지 숨기기
+            errorMessage.style.display = 'none';
+            errorMessage.textContent = '';
+            
+            let expression = equationInput.value.trim();
+
+            // 입력값이 비어있으면 함수 종료
+            if (!expression) {
+                showError("수식을 입력해주세요.");
+                return;
+            }
+
+            try {
+                // "y =" 부분이 있다면 제거하여 순수 함수식만 남김
+                if (expression.toLowerCase().startsWith('y=')) {
+                    expression = expression.substring(2).trim();
+                }
+
+                // function-plot 라이브러리 호출
+                functionPlot({
+                    target: '#graph',
+                    width: graphContainer.clientWidth, // 컨테이너 너비에 맞춤
+                    height: 500,
+                    yAxis: { domain: [-10, 10] },
+                    xAxis: { domain: [-10, 10] },
+                    grid: true,
+                    data: [{
+                        fn: expression,
+                        sampler: 'builtIn', // 'mathjs' 대신 내장 샘플러 사용
+                        graphType: 'polyline'
+                    }],
+                    // 마우스 휠로 줌 기능 활성화
+                    plugins: [
+                        functionPlot.plugins.zoom()
+                    ]
+                });
+
+            } catch (err) {
+                // 수식 파싱 또는 렌더링 중 에러 발생 시
+                console.error("그래프 생성 오류:", err);
+                showError(`잘못된 수식입니다. (오류: ${err.message})`);
+            }
+        }
+        
+        // 에러 메시지를 보여주는 함수
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        // '그리기' 버튼 클릭 시 drawGraph 함수 실행
+        plotButton.addEventListener('click', drawGraph);
+
+        // Enter 키를 눌렀을 때도 그래프가 그려지도록 이벤트 추가
+        equationInput.addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                drawGraph();
+            }
+        });
+
+        // 페이지 로드 시 예제 그래프를 하나 그려줌
+        window.addEventListener('load', function() {
+            equationInput.value = 'sin(x) + cos(2*x)';
+            drawGraph();
+        });
+
+    </script>
+
+</body>
+</html>
