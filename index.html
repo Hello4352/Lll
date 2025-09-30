@@ -3,175 +3,205 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>도형 그래프 생성기 (점, 선, 원, 함수)</title>
+    <title>도형 그래프 생성기</title>
     
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/jsxgraph@1.9.2/dist/jsxgraph.css" />
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/jsxgraph@1.9.2/dist/jsxgraphcore.js"></script>
 
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
+        body, html {
             margin: 0;
-            padding: 15px;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        .panel {
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            padding: 20px;
-        }
-        #graph-container {
-            width: 700px;
-            height: 600px;
-            min-width: 300px;
-        }
-        #jxgbox {
+            padding: 0;
             width: 100%;
             height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
+
+        #jxgbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+        }
+
         #controls-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
             width: 350px;
-            min-width: 300px;
+            max-height: calc(100vh - 40px);
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 25px;
+            box-sizing: border-box;
             display: flex;
             flex-direction: column;
             gap: 25px;
+            overflow-y: auto;
+            z-index: 10;
         }
-        h1, h2 {
+        
+        h2 {
             text-align: center;
             margin-top: 0;
+            margin-bottom: 10px;
             color: #1c1e21;
         }
+
         .control-group {
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
+
         .control-group label {
             font-weight: 600;
             color: #606770;
+            padding-left: 2px;
         }
+
         .input-row {
             display: flex;
             gap: 8px;
         }
+
         select, input[type="text"], input[type="number"] {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
+            padding: 12px;
+            border: 1px solid #dddfe2;
+            border-radius: 8px;
             font-size: 15px;
             box-sizing: border-box;
+            background-color: #f5f6f7;
         }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #007bff;
+            background-color: #fff;
+        }
+
         button {
-            padding: 10px 15px;
+            width: 100%;
+            padding: 12px 15px;
             border: none;
             background-color: #007bff;
             color: white;
             font-size: 16px;
             font-weight: bold;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             transition: background-color 0.2s;
         }
+
         button:hover { background-color: #0056b3; }
+
+        .button-row button {
+            width: 33.33%;
+        }
+
         #object-list {
             list-style: none;
             padding: 0;
             margin: 0;
-            max-height: 150px;
+            max-height: 160px;
             overflow-y: auto;
-            border: 1px solid #eee;
-            border-radius: 6px;
+            border: 1px solid #dddfe2;
+            border-radius: 8px;
+            background-color: #f5f6f7;
         }
+
         #object-list li {
-            padding: 8px 12px;
-            border-bottom: 1px solid #eee;
+            padding: 10px 14px;
+            border-bottom: 1px solid #dddfe2;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, color 0.2s;
+            font-size: 14px;
         }
+
         #object-list li:last-child { border-bottom: none; }
-        #object-list li:hover { background-color: #f0f0f0; }
+        #object-list li:hover { background-color: #e9ecef; }
         #object-list li.selected {
-            background-color: #e7f3ff;
+            background-color: #007bff;
+            color: white;
             font-weight: bold;
-            color: #0056b3;
         }
+
         #error-message {
             color: #d93025;
             text-align: center;
-            margin-top: 10px;
             font-weight: 500;
             min-height: 20px;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
 
-    <div id="controls-container" class="panel">
+    <div id="jxgbox"></div>
+    
+    <div id="controls-container">
         <div class="add-shape-section">
-            <h2>1. 도형 추가</h2>
+            <h2>도형 추가</h2>
             <div class="control-group">
-                <label for="shapeType">도형 종류</label>
+                <label for="shapeType">종류</label>
                 <select id="shapeType">
                     <option value="point">점 (Point)</option>
                     <option value="line">직선 (Line)</option>
                     <option value="circle">원 (Circle)</option>
-                    <option value="functiongraph">함수 (y=f(x))</option>
+                    <option value="functiongraph">함수 (Function)</option>
                 </select>
             </div>
             <div class="control-group">
                 <label for="shapeInput">방정식 또는 좌표</label>
                 <input type="text" id="shapeInput" placeholder="예: (2, 3)">
             </div>
-            <button id="addBtn">도형 추가하기</button>
+            <button id="addBtn">추가</button>
         </div>
 
         <div class="object-list-section">
-            <h2>2. 도형 목록</h2>
-            <ul id="object-list">
-                </ul>
+            <h2>도형 목록</h2>
+            <ul id="object-list"></ul>
         </div>
         
         <div class="transform-section">
-            <h2>3. 도형 변환 (도형 선택 후)</h2>
+            <h2>도형 변환</h2>
             <div class="control-group">
-                <label>평행 이동 (Parallel Translation)</label>
+                <label>평행 이동</label>
                 <div class="input-row">
-                    <input type="number" id="dx" value="1" placeholder="x축으로">
-                    <input type="number" id="dy" value="1" placeholder="y축으로">
+                    <input type="number" id="dx" value="1" title="x축 이동량">
+                    <input type="number" id="dy" value="1" title="y축 이동량">
                 </div>
                 <button id="translateBtn">이동</button>
             </div>
             <div class="control-group">
-                <label>대칭 이동 (Reflection)</label>
-                <div class="input-row">
-                    <button id="reflectXBtn">x축 대칭</button>
-                    <button id="reflectYBtn">y축 대칭</button>
-                    <button id="reflectOriginBtn">원점 대칭</button>
+                <label>대칭 이동</label>
+                <div class="input-row button-row">
+                    <button id="reflectXBtn">x축</button>
+                    <button id="reflectYBtn">y축</button>
+                    <button id="reflectOriginBtn">원점</button>
                 </div>
             </div>
         </div>
         <div id="error-message"></div>
     </div>
 
-    <div id="graph-container" class="panel">
-        <div id="jxgbox"></div>
-    </div>
-
     <script>
-        (function() {
+        (() => {
             const board = JXG.JSXGraph.initBoard('jxgbox', {
-                boundingbox: [-10, 10, 10, -10], // x축 최소, y축 최대, x축 최대, y축 최소
+                boundingbox: [-10, 10, 10, -10],
                 axis: true,
                 grid: true,
-                showCopyright: false
+                showCopyright: false,
+                pan: { enabled: true, needShift: false },
+                zoom: { factorX: 1.25, factorY: 1.25, wheel: true, needShift: false }
             });
 
             const shapeTypeSelect = document.getElementById('shapeType');
@@ -179,7 +209,6 @@
             const addBtn = document.getElementById('addBtn');
             const objectList = document.getElementById('object-list');
             const errorMessage = document.getElementById('error-message');
-
             const dxInput = document.getElementById('dx');
             const dyInput = document.getElementById('dy');
             const translateBtn = document.getElementById('translateBtn');
@@ -187,31 +216,23 @@
             const reflectYBtn = document.getElementById('reflectYBtn');
             const reflectOriginBtn = document.getElementById('reflectOriginBtn');
 
-            let objects = {}; // 생성된 모든 도형 객체를 저장
+            let objects = {};
             let objectCounter = 0;
             let selectedObjectId = null;
 
-            // 도형 종류 변경 시 placeholder 텍스트 업데이트
-            shapeTypeSelect.addEventListener('change', () => {
+            const updatePlaceholder = () => {
                 const placeholders = {
                     point: '예: (2, 3) 또는 2, 3',
-                    line: 'ax+by+c=0  예: 2x - y + 1 = 0',
+                    line: '예: y=2x+1 또는 3x-y+2=0',
                     circle: '중심(h,k), 반지름r  예: (1,2), 5',
-                    functiongraph: 'y=f(x)  예: x^2 * sin(x)'
+                    functiongraph: '예: x^3 - 2*x  또는  sin(x)'
                 };
                 shapeInput.placeholder = placeholders[shapeTypeSelect.value];
-            });
+            };
 
-            // 도형 추가 버튼 클릭 이벤트
-            addBtn.addEventListener('click', addShape);
-            shapeInput.addEventListener('keyup', (e) => {
-                if (e.key === 'Enter') addShape();
-            });
-
-            // 도형 추가 로직
-            function addShape() {
+            const addShape = () => {
                 const type = shapeTypeSelect.value;
-                const input = shapeInput.value.trim();
+                let input = shapeInput.value.trim();
                 if (!input) {
                     showError('수식이나 좌표를 입력하세요.');
                     return;
@@ -229,168 +250,174 @@
                             name = `점 ${element.name}`;
                             break;
                         case 'line':
-                            const lCoeffs = parseLine(input); // [c, a, b]
+                            const lCoeffs = parseLine(input);
                             element = board.create('line', lCoeffs, { strokeColor: '#2980b9', strokeWidth: 2 });
                             name = `직선: ${input}`;
                             break;
                         case 'circle':
-                            const cParams = parseCircle(input); // [[h, k], r]
+                            const cParams = parseCircle(input);
                             const center = board.create('point', cParams[0], { visible: false });
                             element = board.create('circle', [center, cParams[1]], { strokeColor: '#27ae60', strokeWidth: 2 });
                             name = `원 (중심:${cParams[0]}, r:${cParams[1]})`;
                             break;
                         case 'functiongraph':
-                            element = board.create('functiongraph', [input], { strokeColor: '#e67e22', strokeWidth: 2 });
+                            const finalFunc = input.replace(/\^/g, '**');
+                            element = board.create('functiongraph', [finalFunc], { strokeColor: '#e67e22', strokeWidth: 2 });
                             name = `함수: y = ${input}`;
                             break;
                     }
                     
-                    objects[id] = { element, name, type };
+                    objects[id] = { element, name, type, originalInput: input };
                     updateObjectList();
                     selectObject(id);
                     shapeInput.value = '';
-                    showError(''); // Clear error
+                    showError('');
                 } catch (e) {
                     showError(`입력 형식이 잘못되었습니다. (${e.message})`);
                     console.error(e);
                 }
-            }
+            };
             
-            // --- 입력 파싱 함수들 ---
-            function parsePoint(str) {
+            const parsePoint = (str) => {
                 str = str.replace(/[() ]/g, '');
                 const parts = str.split(',');
-                if (parts.length !== 2) throw new Error('점은 "x, y" 형식이어야 합니다.');
+                if (parts.length !== 2 || isNaN(parseFloat(parts[0])) || isNaN(parseFloat(parts[1]))) {
+                    throw new Error('점은 "x, y" 형식이어야 합니다.');
+                }
                 return [parseFloat(parts[0]), parseFloat(parts[1])];
-            }
+            };
 
-            function parseLine(str) {
+            const parseLine = (str) => {
                 str = str.replace(/\s/g, '').toLowerCase();
-                if (str.includes('=')) str = str.split('=')[0]; // Remove '=0' if present
-                
-                const getCoeff = (term) => {
-                    const match = str.match(new RegExp(`([+-]?\\d*\\.?\\d*)${term}`));
-                    if (!match) return 0;
-                    if (match[1] === '+' || match[1] === '') return 1;
-                    if (match[1] === '-') return -1;
-                    return parseFloat(match[1]);
-                };
-                
-                const a = getCoeff('x');
-                const b = getCoeff('y');
-                
-                const cMatch = str.replace(/([+-]?\d*\.?\d*)x/g, '').replace(/([+-]?\d*\.?\d*)y/g, '');
-                const c = cMatch ? parseFloat(cMatch) : 0;
-                
-                if (a === 0 && b === 0) throw new Error('유효한 직선이 아닙니다.');
-                return [c, a, b];
-            }
+                if (str.includes('y=')) {
+                    let expression = str.split('y=')[1];
+                    const mMatch = expression.match(/([+-]?\d*\.?\d*)x/);
+                    let m = 0;
+                    if (mMatch) {
+                        if (mMatch[1] === '' || mMatch[1] === '+') m = 1;
+                        else if (mMatch[1] === '-') m = -1;
+                        else m = parseFloat(mMatch[1]);
+                        expression = expression.replace(mMatch[0], '');
+                    }
+                    const b = expression ? parseFloat(expression) : 0;
+                    if (isNaN(m) || isNaN(b)) throw new Error('y=mx+b 형식이 잘못되었습니다.');
+                    return [b, m, -1]; 
+                } else {
+                    if (str.includes('=')) str = str.split('=')[0];
+                    const getCoeff = (term) => {
+                        const regex = new RegExp(`([+-]?(?:\\d*\\.\\d+|\\d+))${term}`);
+                        const match = str.match(regex);
+                        if (!match) {
+                            if (str.includes(`+${term}`)) return 1;
+                            if (str.includes(`-${term}`)) return -1;
+                             if(str.startsWith(term)) return 1;
+                            return 0;
+                        }
+                        return parseFloat(match[1]);
+                    };
+                    const a = getCoeff('x');
+                    const b = getCoeff('y');
+                    const cStr = str.replace(/([+-]?(?:\d*\.\d+|\d+))x/g, '').replace(/([+-]?(?:\d*\.\d+|\d+))y/g, '');
+                    const c = cStr ? parseFloat(cStr) : 0;
+                    if (a === 0 && b === 0) throw new Error('유효한 직선이 아닙니다.');
+                    return [c, a, b];
+                }
+            };
 
-            function parseCircle(str) {
-                const parts = str.split(',');
-                if (parts.length < 3) throw new Error('원은 " (h,k), r " 형식이어야 합니다.');
-                const center = parsePoint(`(${parts[0]},${parts[1]})`);
-                const radius = parseFloat(parts[2]);
+            const parseCircle = (str) => {
+                str = str.replace(/\s/g, '');
+                const parts = str.split('),');
+                if (parts.length !== 2) throw new Error('원은 "(h,k),r" 형식이어야 합니다.');
+                const center = parsePoint(parts[0] + ')');
+                const radius = parseFloat(parts[1]);
                 if (isNaN(radius) || radius <= 0) throw new Error('반지름은 양수여야 합니다.');
                 return [center, radius];
-            }
+            };
 
-            // --- UI 업데이트 함수 ---
-            function updateObjectList() {
+            const updateObjectList = () => {
                 objectList.innerHTML = '';
-                for (const id in objects) {
+                Object.keys(objects).forEach(id => {
                     const li = document.createElement('li');
                     li.textContent = objects[id].name;
                     li.dataset.id = id;
-                    if (id === selectedObjectId) {
-                        li.classList.add('selected');
-                    }
+                    if (id === selectedObjectId) li.classList.add('selected');
                     li.addEventListener('click', () => selectObject(id));
                     objectList.appendChild(li);
-                }
-            }
+                });
+            };
 
-            function selectObject(id) {
+            const selectObject = (id) => {
                 selectedObjectId = id;
-                // 시각적 피드백: 선택된 객체 스타일 변경
-                for(const objId in objects) {
+                Object.keys(objects).forEach(objId => {
                     const el = objects[objId].element;
-                    if (objId === id) {
-                        el.setAttribute({ strokeWidth: 4, highlightStrokeWidth: 4 });
-                    } else {
-                        el.setAttribute({ strokeWidth: 2, highlightStrokeWidth: 2 });
-                    }
-                }
+                    const isSelected = objId === id;
+                    el.setAttribute({
+                        strokeWidth: isSelected ? 4 : 2,
+                        highlightStrokeWidth: isSelected ? 4 : 2
+                    });
+                });
                 updateObjectList();
-            }
+            };
 
-            // --- 변환 이벤트 리스너 ---
-            translateBtn.addEventListener('click', () => {
+            const applyTransform = (transformParam, transformType, transformName) => {
                 if (!selectedObjectId) {
                     showError('먼저 변환할 도형을 선택하세요.');
                     return;
                 }
-                const dx = parseFloat(dxInput.value);
-                const dy = parseFloat(dyInput.value);
-                applyTransform([dx, dy], 'translate');
-            });
-            
-            reflectXBtn.addEventListener('click', () => applyReflection('x'));
-            reflectYBtn.addEventListener('click', () => applyReflection('y'));
-            reflectOriginBtn.addEventListener('click', () => applyReflection('origin'));
-
-            function applyReflection(axisType) {
-                if (!selectedObjectId) {
-                    showError('먼저 변환할 도형을 선택하세요.');
-                    return;
-                }
-                let axis;
-                if (axisType === 'x') axis = board.create('line', [[0,0], [1,0]], { visible: false }); // x축
-                else if (axisType === 'y') axis = board.create('line', [[0,0], [0,1]], { visible: false }); // y축
-                else if (axisType === 'origin') axis = board.create('point', [0,0], { visible: false }); // 원점
-                
-                applyTransform(axis, 'reflect');
-            }
-
-            // 변환 적용 로직
-            function applyTransform(transformParam, transformType) {
                 const original = objects[selectedObjectId];
-                const transform = board.create('transform', [transformParam], { type: transformType });
-                
-                let newElement;
-                const newId = `obj${objectCounter++}`;
-                let newName = `${original.name} (${transformType})`;
-
-                // JSXGraph는 객체 타입별로 변환을 적용하는 방식이 조금씩 다름
-                // 여기서는 간단하게 점을 변환하여 새 도형을 생성하는 방식을 사용
-                const newPoints = original.element.vertices.map(v => 
-                    board.create('point', [v, transform], { visible: false })
-                );
-
-                if (original.type === 'point') {
-                    const newCoords = newPoints[0].coords.usrCoords.slice(1);
-                    newElement = board.create('point', newCoords, { name: `(${newCoords[0].toFixed(2)}, ${newCoords[1].toFixed(2)})`, size: 3 });
-                } else if (original.type === 'line') {
-                    newElement = board.create('line', [newPoints[0], newPoints[1]], { strokeColor: '#8e44ad', strokeWidth: 2 });
-                } else if (original.type === 'circle') {
-                    const newCenter = newPoints[0];
-                    const radius = original.element.radius;
-                    newElement = board.create('circle', [newCenter, radius], { strokeColor: '#16a085', strokeWidth: 2 });
-                } else {
-                     showError('함수 그래프는 현재 변환을 지원하지 않습니다.');
-                     return;
+                if (original.type === 'functiongraph') {
+                    showError('함수 그래프는 변환을 지원하지 않습니다.');
+                    return;
                 }
+
+                const transform = board.create('transform', [transformParam], { type: transformType });
+                const newId = `obj${objectCounter++}`;
+                let newElement, newName = `${original.name} (${transformName})`;
+
+                const createTransformed = (type, oldEl) => {
+                    const newPoints = oldEl.vertices.map(v => board.create('point', [v, transform], { visible: false }));
+                    if (type === 'point') {
+                        const coords = newPoints[0].coords.usrCoords.slice(1);
+                        return board.create('point', coords, { name: `(${coords[0].toFixed(2)}, ${coords[1].toFixed(2)})`, size: 3 });
+                    } else if (type === 'line') {
+                        return board.create('line', [newPoints[0], newPoints[1]], { strokeColor: '#8e44ad', strokeWidth: 2 });
+                    } else if (type === 'circle') {
+                        return board.create('circle', [newPoints[0], oldEl.radius], { strokeColor: '#16a085', strokeWidth: 2 });
+                    }
+                };
                 
+                newElement = createTransformed(original.type, original.element);
                 objects[newId] = { element: newElement, name: newName, type: original.type };
                 updateObjectList();
                 selectObject(newId);
                 showError('');
-            }
+            };
 
-            function showError(msg) {
+            const applyReflection = (axisType) => {
+                let axis, name;
+                if (axisType === 'x') { axis = board.create('line', [[0, 0], [1, 0]], { visible: false }); name = 'x축 대칭'; }
+                else if (axisType === 'y') { axis = board.create('line', [[0, 0], [0, 1]], { visible: false }); name = 'y축 대칭'; }
+                else if (axisType === 'origin') { axis = board.create('point', [0, 0], { visible: false }); name = '원점 대칭'; }
+                applyTransform(axis, 'reflect', name);
+            };
+
+            const showError = (msg) => {
                 errorMessage.textContent = msg;
-            }
+            };
 
+            shapeTypeSelect.addEventListener('change', updatePlaceholder);
+            addBtn.addEventListener('click', addShape);
+            shapeInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') addShape(); });
+            translateBtn.addEventListener('click', () => {
+                const dx = parseFloat(dxInput.value) || 0;
+                const dy = parseFloat(dyInput.value) || 0;
+                applyTransform([dx, dy], 'translate', '평행이동');
+            });
+            reflectXBtn.addEventListener('click', () => applyReflection('x'));
+            reflectYBtn.addEventListener('click', () => applyReflection('y'));
+            reflectOriginBtn.addEventListener('click', () => applyReflection('origin'));
+
+            updatePlaceholder();
         })();
     </script>
 
